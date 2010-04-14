@@ -10,8 +10,9 @@ spreadsheets from having to work with the underlying libs which are very
 complete and can thus be a bit complex.
 
 Additionally I have worked with the developer of jQuery.sheet, a plugin for 
-displaying spreadsheet data in a browser. The resulting data format is very 
-simple to convert to JSON and import into that plugin.
+displaying spreadsheet data in a browser. http://www.visop-dev.com/jquerysheet.html
+The resulting data format is very simple to convert to JSON and import into 
+that plugin.
 
  -- not packaged as a plugin yet, but when it is you will be able to ...
 Install from the zip file on Github.
