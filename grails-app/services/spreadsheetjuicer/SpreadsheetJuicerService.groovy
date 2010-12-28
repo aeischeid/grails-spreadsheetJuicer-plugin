@@ -182,56 +182,63 @@ class SpreadsheetJuicerService {
     return xlsData
   }
   
-  def excelToHash(inputStream, colTypes, ignoredRows) {
+  def excelToHash(inputStream, rows = null, columns = null, parseDatesAsString = false) {
     def wb = new WorkbookFactory().create(inputStream)
-    def excelData = []
+    def (dateUtil, excelData, sheet,row,cell, cellVal) = [new DateUtil(), [], null,null,null,null]
     def numOfSheets = wb.getNumberOfSheets()-1
     (0..numOfSheets).each{sheetNum ->
-      def sheet = wb.getSheetAt(sheetNum)
-      //the sheet needs to have at least one row... not sure what is best detector...
-      //maybe if(sheet.getPhysicalNumberOfRows()>0 || sheet.getFirstRowNum())
-      //println "physical rows: "+ sheet.getPhysicalNumberOfRows()
+      sheet = wb.getSheetAt(sheetNum)
       def firstRow = sheet.getFirstRowNum()
       if(sheet.getRow(firstRow)){
-        def rowCount = sheet.getLastRowNum()+1
-        def colCount = sheet.getRow(firstRow).getLastCellNum()
+        // default tries to auto determine last row... option to specify rows
+        // not sure what it will do with blank rows acting as spacers
+        def rowCount = rows ?: sheet.getLastRowNum()+1
+        // default grid width is determined by the first row
+        // this is not always a good situation... option to specify columns
+        def colCount = columns ?: sheet.getRow(firstRow).getLastCellNum()
         //println "rows: "+ rowCount + " -- columns: " + colCount
         excelData[sheetNum] = [
           "metadata":["columns":colCount, "rows":rowCount,"title":sheet.getSheetName()],
           "data":[:]
         ]
-        sheet.rowIterator().eachWithIndex{row, rowNum ->
-          excelData[sheetNum]["data"]['r'+(rowNum)] = [:]
-          row.cellIterator().eachWithIndex{cell, colNum ->
-            def kindOfCell = cell.getCellType() // 0 = numeric, 1 = String, 2 = Formula, 3 = Blank, 4 = Boolean, 5 = Error
-            def cellVal
-            switch(kindOfCell) {
-              case 0:
-                cellVal = cell.getNumericCellValue()
-                break
-              case 1:
-                cellVal = cell.getStringCellValue()
-                break
-              case 2:
-                cellVal = cell.getCachedFormulaResultType()
-                break
-              case 3:
-                cellVal = ''
-                break
-              case 4:
-                cellVal = cell.getBooleanCellValue()
-                break
-              default:
-                cellVal = "error"
-                println "cell evaluation error"
-            }
-            try{
-              excelData[sheetNum]["data"]['r'+(rowNum)]['c'+(colNum)] = ["value":"${cellVal}",
+        for(rowNum in firstRow..rowCount) {
+          row = sheet.getRow(rowNum)
+          if(row){
+            def firstCell = row.getFirstCellNum()
+            excelData[sheetNum]["data"]['r'+(rowNum)] = [:]
+            for(colNum in firstCell..colCount){
+              cell = row.getCell(colNum, Row.CREATE_NULL_AS_BLANK)
+              def kindOfCell = cell.getCellType() // 0 = numeric, 1 = String, 2 = Formula, 3 = Blank, 4 = Boolean, 5 = Error
+              switch(kindOfCell) {
+                case 0:
+                  //println "numeric cellFormat: "+cell.getCellStyle().getDataFormat() + " --- " +cell.getCellStyle().getDataFormatString()
+                  if(!dateUtil.isCellDateFormatted(cell)) cellVal = cell.getNumericCellValue()
+                  else {
+                    if(!parseDatesAsString) cellVal = dateUtil.getJavaDate(cell.getNumericCellValue())
+                    else cellVal = new DataFormatter().formatCellValue(cell)
+                  }
+                  break
+                case 1:
+                  //println "string cellFormat: "+cell.getCellStyle().getDataFormat() + " --- " +cell.getCellStyle().getDataFormatString()
+                  cellVal = cell.getStringCellValue()
+                  break
+                case 2:
+                  cellVal = cell.getCachedFormulaResultType()
+                  break
+                case 3:
+                  cellVal = ''
+                  break
+                case 4:
+                  cellVal = cell.getBooleanCellValue()
+                  break
+                default:
+                  cellVal = "error"
+                  println "cell evaluation error"
+              }
+              excelData[sheetNum]["data"]['r'+(rowNum)]['c'+(colNum)] = ["value":cellVal,
                                                                          "style":"",
                                                                          "width":0,
                                                                          "cl":["cell"]]
-            } catch(Throwable e) {
-              println 'sheet:'+sheetNum+' -- r:'+rowNum+' -- c:'+colNum+' -- err:'+e
             }
           }
         }
