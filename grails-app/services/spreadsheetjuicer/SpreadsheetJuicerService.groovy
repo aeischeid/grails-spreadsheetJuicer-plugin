@@ -68,7 +68,7 @@ class SpreadsheetJuicerService {
     return cleanSsData
   }
   
-//    Idealy we want the resulting hash to be in this format -- not necessarily JSON syntax. 
+//    Idealy we want the resulting hash to be in this format
 //      var documents = [
 //        { //repeats
 //            metadata: {
@@ -184,6 +184,7 @@ class SpreadsheetJuicerService {
   
   def excelToHash(inputStream, rows = null, columns = null, parseDatesAsString = false) {
     def wb = new WorkbookFactory().create(inputStream)
+    FormulaEvaluator evaluator = wb.getCreationHelper().createFormulaEvaluator()
     def (dateUtil, excelData, sheet,row,cell, cellVal) = [new DateUtil(), [], null,null,null,null]
     def numOfSheets = wb.getNumberOfSheets()-1
     (0..numOfSheets).each{sheetNum ->
@@ -223,7 +224,37 @@ class SpreadsheetJuicerService {
                   cellVal = cell.getStringCellValue()
                   break
                 case 2:
-                  cellVal = cell.getCachedFormulaResultType()
+                  //cellVal = cell.getCachedFormulaResultType().toString()
+                  def cellValue = evaluator.evaluate(cell)
+                  switch (cellValue.getCellType()) {
+                    case Cell.CELL_TYPE_BOOLEAN:
+                        cellVal = cellValue.getBooleanValue()
+                        break;
+                    case Cell.CELL_TYPE_NUMERIC:
+                        def cellNumVal = cellValue.getNumberValue()
+                        if(!dateUtil.isCellDateFormatted(cell)) cellVal = cellNumVal
+                        else {
+                          if(!parseDatesAsString) cellVal = dateUtil.getJavaDate(cellNumVal)
+                          else {
+                            try{
+                              def dd = cellNumVal.doubleValue()
+                              def ii = cell.getCellStyle().getIndex().intValue()
+                              cellVal = new DataFormatter().formatRawCellcontents(dd,ii, cell.getCellStyle().getDataFormatString())
+                            }
+                            catch(e){ cellVal = cellNumVal }
+                            
+                          }
+                        }
+                        break;
+                    case Cell.CELL_TYPE_STRING:
+                        cellVal = cellValue.getStringValue()
+                        break;
+                    case Cell.CELL_TYPE_BLANK:
+                        break;
+                    case Cell.CELL_TYPE_ERROR:
+                        cellVal = 'err'
+                        break;
+                  }
                   break
                 case 3:
                   cellVal = ''
