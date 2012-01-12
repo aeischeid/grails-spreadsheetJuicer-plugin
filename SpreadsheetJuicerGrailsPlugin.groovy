@@ -17,11 +17,11 @@ class SpreadsheetJuicerGrailsPlugin {
     def authorEmail = "a.eischeid@gmail.com"
     def title = "extract data from simple spreadsheets"
     def description = '''
-      provides Grails with a service to extract the data from simple MSexcel and OpenOffice spreadsheets into a form easily used in groovy. Under the hood it is using Apache POI and JOpenDocument libraries.
+      provides Grails with simple services to interact with spreadsheets either extracting or injecting data. Under the hood it is using Apache POI and JOpenDocument libraries.
     '''
 
     // URL to the plugin's documentation
-    def documentation = "http://grails.org/plugin/spreadsheet-juicer"
+    def documentation = "https://github.com/aeischeid/grails-spreadsheetJuicer-plugin"
 
     def doWithWebDescriptor = { xml ->
         // TODO Implement additions to web.xml (optional), this event occurs before 
