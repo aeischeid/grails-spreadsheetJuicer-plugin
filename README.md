@@ -15,43 +15,34 @@ displaying spreadsheet data in a browser. http://www.visop-dev.com/jquerysheet.h
 The resulting data format is very simple to convert to JSON or XML and import into 
 that plugin for manipulation in browser
 
- -- not packaged as a plugin yet, but when it is you will be able to ...
-Install from the zip file on Github.
-    "grails install-plugin [path/to/zip/file]"
- -- I will also try to release it to the grails repos with relase-plugin --zipOnly ..."
-
 <------------>
     Usage:
 <------------>
 
-def webRootDir = servletContext.getRealPath("/")
-def uploadedFile = new File("${userDir}/path/to/file")
-def file = new FileInputStream(uploadedFile)
-def ssDataHash = SpreadsheetJuicerService.xlsAsHash(file)
+Juicer:
 
-//simple conversion to JSON 
+def uploadedFile = new File("${params.fileName}")
+def fileStream = new FileInputStream(uploadedFile)
+return spreadsheetJuicerService.excelToHash(fileStream)
 
-def ssJson = ssDataHash.encodeAsJSON()
-return [params:params, ssJson:ssJson]
+Builder:
 
-
-
-a more thorough example:
-
-in gsp --
-
-   
-    
-in controller -- 
-
-class UploadDataController {
-
-    def spreadsheetJuicerService
-    
+// build an array of data you want to fill the spreadsheet with
+def books = Books.list
+def ssData = [:]
+books.eachWithIndex{
+	ssData[i] = [a:"${it.author.name}",
+							b:"${it.title}",
+							c:"${it.pagecount}",
+							.
+							.
+							.
+							t:'${it.publisher.name}']
 }
-    
-back in the gsp --
-    
-    [all the other pieces you need for the jQuery.sheet plugin]
-    
-
+// get path to a premade excel sheet that we will populate
+// row 1 is assumed to be colum headings so service starts filling in on row 2
+def b = spreadsheetBuilderService.fillInXlsxTemplateWithDataFromArray(templateUrl, ssData)
+response.contentType = ConfigurationHolder.config.grails.mime.types['excel']
+response.setHeader("Content-disposition", "attachment; filename=billing-week${params.weekOfYear}-${params.year}.xlsx")
+response.setContentLength(b.length)
+response.getOutputStream().write(b)
